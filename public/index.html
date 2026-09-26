@@ -9,6 +9,7 @@
     <meta name="keywords" content="link shortener, link management, URL shortener, analytics, QR code, bio link, piik.me">
 
     <!-- Open Graph / Facebook -->
+
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://piik.me/">
     <meta property="og:title" content="piik.me - Link Management & Analytics">
@@ -16,6 +17,7 @@
     <meta property="og:image" content="assets/images/favicon.png">
 
     <!-- Twitter -->
+
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://piik.me/">
     <meta property="twitter:title" content="piik.me - Link Management & Analytics">
@@ -23,6 +25,7 @@
     <meta property="twitter:image" content="assets/images/favicon.png">
 
     <!-- Preconnect critical third-party origins -->
+
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
@@ -34,6 +37,7 @@
 </head>
 <body>
     <!-- Sidebar Navigation -->
+
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/home" class="logo" id="logoLink">
@@ -73,6 +77,7 @@
 
         <div class="sidebar-footer">
             <!-- User Info -->
+
             <div class="sidebar-user" id="sidebarUser" style="display: none;">
                 <img src="" alt="User" class="user-avatar" id="sidebarUserPhoto">
                 <div class="user-info">
@@ -84,8 +89,11 @@
     </aside>
 
     <!-- Main Content Area -->
+
     <main class="main-content" id="app">
+
         <!-- Animated Background Orbs -->
+
         <div class="app-bg">
             <div class="app-orb app-orb-1"></div>
             <div class="app-orb app-orb-2"></div>
@@ -93,8 +101,11 @@
         </div>
         
         <!-- Page Container -->
+
         <div class="page-container">
+
             <!-- Home Page -->
+
                 <button class="mobile-menu-btn" id="mobileMenuBtn">
                     <i class="fas fa-bars"></i>
                 </button>
@@ -112,7 +123,9 @@
                         </button>
                     </div>
                     <div class="search-suggestions" id="searchSuggestions" style="display: none;">
+
                         <!-- Suggestions will be populated here -->
+
                     </div>
                 </div>
                 <a href="https://github.com/xthxr/piik.me" target="_blank" rel="noopener noreferrer" 
@@ -151,6 +164,7 @@
                 </div>
 
                 <!-- Stats Cards -->
+
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-icon purple">
@@ -191,6 +205,7 @@
                 </div>
 
                 <!-- Filters -->
+
                 <div class="filters-bar">
                     <div class="filter-tabs">
                         <button class="filter-tab active" data-filter="all">All Links</button>
@@ -207,11 +222,15 @@
                 </div>
 
                 <!-- Links Grid -->
+
                 <div class="links-container" id="linksContainer">
+
                     <!-- Links will be populated here -->
+
                 </div>
 
                 <!-- Empty State -->
+
                 <div class="empty-state" id="emptyState" style="display: none;">
                     <div class="empty-state-icon">
                         <i class="fas fa-link"></i>
@@ -225,6 +244,7 @@
             </section>
 
             <!-- Analytics Page -->
+
             <section class="page" id="analyticsPage" style="display: none;">
                 <div class="page-header">
                     <div class="header-content">
@@ -245,6 +265,7 @@
                 </div>
 
                 <!-- Analytics Stats -->
+
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-icon blue">
@@ -289,6 +310,7 @@
                 </div>
 
                 <!-- Split Test Analytics Panel (Only visible for split-test links) -->
+
                 <div class="split-test-analytics-panel" id="splitTestAnalyticsPanel" style="display: none; margin-bottom: 24px; padding: 20px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px;">
                     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
                         <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text-primary);"><i class="fas fa-flask" style="color: var(--accent-purple);"></i> A/B Split Test Performance</h3>
@@ -307,7 +329,9 @@
                                     </tr>
                                 </thead>
                                 <tbody id="splitTestAnalyticsTableBody">
+
                                     <!-- Populated dynamically -->
+
                                 </tbody>
                             </table>
                         </div>
@@ -346,6 +370,7 @@
                 </div>
 
                 <!-- Detailed Tables -->
+
                 <div class="analytics-grid">
                     <div class="analytics-card">
                         <div class="card-header">
@@ -356,7 +381,9 @@
                         </div>
                         <div class="card-body">
                             <div class="analytics-list" id="geographicList">
+
                                 <!-- Populated dynamically -->
+
                             </div>
                         </div>
                     </div>
@@ -367,7 +394,9 @@
                         </div>
                         <div class="card-body">
                             <div class="analytics-list" id="devicesList">
+
                                 <!-- Populated dynamically -->
+
                             </div>
                         </div>
                     </div>
@@ -378,7 +407,9 @@
                         </div>
                         <div class="card-body">
                             <div class="analytics-list" id="browsersList">
+
                                 <!-- Populated dynamically -->
+
                             </div>
                         </div>
                     </div>
@@ -389,7 +420,9 @@
                         </div>
                         <div class="card-body">
                             <div class="analytics-list" id="referrersList">
+
                                 <!-- Populated dynamically -->
+
                             </div>
                         </div>
                     </div>
@@ -397,6 +430,7 @@
             </section>
 
             <!-- QR Generator Page -->
+
             <section class="page" id="qr-generatorPage" style="display: none;">
                 <div class="page-header">
                     <div class="header-content">
@@ -406,7 +440,9 @@
                 </div>
 
                 <div class="qr-generator-container">
+
                     <!-- QR Input Section -->
+
                     <div class="qr-input-section">
                         <div class="qr-card">
                             <h3><i class="fas fa-link"></i> Enter Your Link</h3>
@@ -420,6 +456,7 @@
                         </div>
 
                         <!-- Quick Select Links -->
+
                         <div class="qr-card">
                             <h3><i class="fas fa-zap"></i> Quick Generate from Your Links</h3>
                             <div class="quick-links-grid" id="quickLinksGrid">
@@ -429,8 +466,11 @@
                     </div>
 
                     <!-- QR Customization Section -->
+
                     <div class="qr-customization-section">
+
                         <!-- QR Preview -->
+
                         <div class="qr-card qr-preview-card">
                             <h3><i class="fas fa-eye"></i> Preview</h3>
                             <div class="qr-preview-container" id="qrPreviewContainer">
@@ -445,6 +485,7 @@
                         </div>
 
                         <!-- Pattern Selection -->
+
                         <div class="qr-card">
                             <h3><i class="fas fa-shapes"></i> QR Pattern Style</h3>
                             <div class="qr-pattern-grid">
@@ -512,6 +553,7 @@
                         </div>
 
                         <!-- Brand Name -->
+
                         <div class="qr-card">
                             <h3><i class="fas fa-tag"></i> Brand Name (Optional)</h3>
                             <div class="form-group">
@@ -521,6 +563,7 @@
                         </div>
 
                         <!-- Event Frames -->
+
                         <div class="qr-card">
                             <h3><i class="fas fa-frame"></i> Event Frames</h3>
                             <div class="frame-grid">
@@ -568,6 +611,7 @@
                         </div>
 
                         <!-- Color Picker -->
+
                         <div class="qr-card">
                             <h3><i class="fas fa-palette"></i> QR Color</h3>
                             <div class="color-picker-container">
@@ -592,6 +636,7 @@
                         </div>
 
                         <!-- QR Size -->
+
                          <div class="qr-card">
                             <h3><i class="fas fa-expand-arrows-alt"></i> QR Size</h3>
 
@@ -614,6 +659,7 @@
 </div>
 
                         <!-- Download Options -->
+
                         <div class="qr-card">
                             <h3><i class="fas fa-download"></i> Download Options</h3>
                             <div class="download-options">
@@ -654,6 +700,7 @@
             </section>
 
             <!-- Detailed Geographic Analytics Page -->
+
             <section class="page" id="geo-detailsPage" style="display: none;">
                 <div class="page-header">
                     <div class="header-content">
@@ -681,6 +728,7 @@
                 </div>
 
                 <!-- Location Summary Stats -->
+
                 <div class="stats-grid" style="margin-bottom: 24px;">
                     <div class="stat-card">
                         <div class="stat-icon purple">
@@ -721,6 +769,7 @@
                 </div>
 
                 <!-- Globe View Container -->
+
                 <div id="globeViewContainer" style="display: none;">
                     <div class="analytics-card" style="margin-bottom: 24px;">
                         <div class="card-header">
@@ -735,6 +784,7 @@
                     </div>
                     
                     <!-- Location Legend -->
+
                     <div class="analytics-card" style="margin-bottom: 24px;">
                         <div class="card-header">
                             <h3><i class="fas fa-map-marker-alt"></i> Locations</h3>
@@ -742,16 +792,20 @@
                         </div>
                         <div class="card-body">
                             <div id="globeLocationsList" class="globe-locations-grid">
+
                                 <!-- Populated dynamically -->
+
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Click Details Container -->
+
                 <div id="clickDetailsContainer">
                 
                 <!-- Filters -->
+
                 <div class="filters-bar" style="margin-bottom: 24px;">
                     <div class="filter-tabs">
                         <button class="filter-tab active" data-filter="all" onclick="filterGeoData('all')">All Clicks</button>
@@ -773,6 +827,7 @@
                 </div>
 
                 <!-- Detailed Clicks Table -->
+
                 <div class="analytics-card">
                     <div class="card-header">
                         <h3><i class="fas fa-table"></i> Click Details</h3>
@@ -795,7 +850,9 @@
                                     </tr>
                                 </thead>
                                 <tbody id="geoClicksTableBody">
+
                                     <!-- Populated dynamically -->
+
                                 </tbody>
                             </table>
                         </div>
@@ -806,6 +863,7 @@
             </section>
 
             <!-- Bio Link Page -->
+
             <section class="page" id="bio-linkPage" style="display: none;">
                 <div class="page-header">
                     <div class="header-content">
@@ -820,6 +878,7 @@
                 </div>
 
                 <!-- Bio Link Stats -->
+
                 <div class="stats-grid" style="margin-bottom: 24px;" id="bioLinkStatsGrid">
                     <div class="stat-card">
                         <div class="stat-icon purple">
@@ -860,12 +919,17 @@
                 </div>
 
                 <!-- Bio Link Editor (shown when bio link exists) -->
+
                 <div id="bioLinkEditor" style="display: none;">
                     <div style="display: grid; grid-template-columns: 1fr 400px; gap: 24px; align-items: start;">
+
                         <!-- Editor Panel -->
+
                         <div class="bio-editor-panel">
                             <div class="card" style="padding: 0;">
+
                                 <!-- Profile Section -->
+
                                 <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
                                     <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                                         <i class="fas fa-user-circle"></i> Profile
@@ -907,6 +971,7 @@
                                 </div>
 
                                 <!-- Appearance Section -->
+
                                 <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
                                     <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                                         <i class="fas fa-palette"></i> Appearance
@@ -931,6 +996,7 @@
                                 </div>
 
                                 <!-- Social Links Section -->
+
                                 <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
                                     <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                                         <i class="fas fa-share-alt"></i> Social Links
@@ -964,6 +1030,7 @@
                                 </div>
 
                                 <!-- Links Section -->
+
                                 <div style="padding: 24px;">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                                         <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
@@ -974,11 +1041,14 @@
                                         </button>
                                     </div>
                                     <div id="editorBioLinkItems" style="display: flex; flex-direction: column; gap: 12px;">
+
                                         <!-- Links will be added here -->
+
                                     </div>
                                 </div>
 
                                 <!-- Action Buttons -->
+
                                 <div style="padding: 24px; background: #000000; border-top: 1px solid #2a2a2a; display: flex; gap: 12px; justify-content: flex-end;">
                                     <button class="btn btn-secondary" onclick="cancelBioLinkEdits()">
                                         <i class="fas fa-times"></i> Cancel
@@ -991,6 +1061,7 @@
                         </div>
 
                         <!-- Live Preview Panel -->
+
                         <div style="position: sticky; top: 24px;">
                             <div class="card" style="padding: 20px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -1006,6 +1077,7 @@
                                 </div>
                                 
                                 <!-- Phone Mockup -->
+
                                 <div style="display: flex; justify-content: center; padding: 20px 0;">
                                     <div class="phone-mockup">
                                         <div class="phone-notch"></div>
@@ -1024,6 +1096,7 @@
                 </div>
 
                 <!-- Empty State -->
+
                 <div class="empty-state" id="bioLinksEmptyState" style="display: none;">
                     <div class="empty-state-icon">
                         <i class="fas fa-link"></i>
@@ -1037,6 +1110,7 @@
             </section>
 
             <!-- Profile Page -->
+
             <section class="page" id="profilePage" style="display: none;">
                 <div class="page-header">
                     <div class="header-content">
@@ -1046,7 +1120,9 @@
                 </div>
 
                 <div class="profile-grid">
+
                     <!-- Profile Info Card -->
+
                     <div class="profile-card">
                         <div class="card-header">
                             <h3><i class="fas fa-user"></i> Profile Information</h3>
@@ -1069,6 +1145,7 @@
                     </div>
 
                     <!-- Account Settings -->
+
                     <div class="profile-card">
                         <div class="card-header">
                             <h3><i class="fas fa-cog"></i> Account Settings</h3>
@@ -1108,6 +1185,7 @@
                     </div>
 
                     <!-- API Access (Coming Soon) -->
+
                     <div class="profile-card">
                         <div class="card-header">
                             <h3><i class="fas fa-key"></i> API Access</h3>
@@ -1131,6 +1209,7 @@
                     </div>
 
                     <!-- Danger Zone -->
+
                     <div class="profile-card danger-card">
                         <div class="card-header">
                             <h3><i class="fas fa-exclamation-triangle"></i> Danger Zone</h3>
@@ -1151,6 +1230,7 @@
     </main>
 
     <!-- Create Link Modal -->
+
     <div class="modal" id="createLinkModal">
         <div class="modal-overlay" id="modalOverlay"></div>
         <div class="modal-content">
@@ -1284,6 +1364,7 @@
     </div>
 
     <!-- Username Setup Modal -->
+
     <div class="modal" id="usernameModal" style="display: none;">
         <div class="modal-overlay"></div>
         <div class="modal-content" style="max-width: 500px;">
@@ -1325,6 +1406,7 @@
     </div>
 
     <!-- Bug Report Modal -->
+
     <div class="modal" id="bugReportModal" style="display: none;">
         <div class="modal-overlay"></div>
         <div class="modal-content bug-report-modal">
@@ -1367,6 +1449,7 @@
     </div>
 
     <!-- Bio Link Modal -->
+
     <div class="modal" id="bioLinkModal" style="display: none;">
         <div class="modal-overlay" id="bioLinkModalOverlay"></div>
         <div class="modal-content" style="max-width: 800px;">
@@ -1377,7 +1460,9 @@
                 </button>
             </div>
             <div class="modal-body">
+
                 <!-- Import Section -->
+
                 <div class="form-section" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(8, 145, 178, 0.05)); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
                     <h4 style="margin-bottom: 16px;"><i class="fas fa-download"></i> Import from Other Platforms</h4>
                     <p style="color: rgba(255, 255, 255, 0.7); font-size: 14px; margin-bottom: 16px;">Already have a Linktree or Bento profile? Import your data instantly!</p>
@@ -1397,6 +1482,7 @@
                 </div>
 
                 <!-- Bio Link Basic Info -->
+
                 <div class="form-section">
                     <h4><i class="fas fa-info-circle"></i> Basic Information</h4>
                     <div class="form-group">
@@ -1425,10 +1511,13 @@
                 </div>
 
                 <!-- Links Section -->
+
                 <div class="form-section">
                     <h4><i class="fas fa-link"></i> Links</h4>
                     <div id="bioLinksListContainer">
+
                         <!-- Links will be added here dynamically -->
+
                     </div>
                     <button class="btn btn-secondary btn-sm" id="addBioLinkItemBtn" style="margin-top: 12px;">
                         <i class="fas fa-plus"></i> Add Link
@@ -1436,6 +1525,7 @@
                 </div>
 
                 <!-- Appearance -->
+
                 <div class="form-section">
                     <h4><i class="fas fa-palette"></i> Appearance</h4>
                     <div class="form-grid">
@@ -1475,6 +1565,7 @@
                 </div>
 
                 <!-- Social Links -->
+
                 <div class="form-section">
                     <h4><i class="fas fa-share-alt"></i> Social Links (Optional)</h4>
                     <div class="form-grid">
@@ -1516,6 +1607,7 @@
 
 
     <!-- Share Bio Link Modal -->
+
     <div class="modal" id="shareBioLinkModal" style="display: none;">
         <div class="modal-overlay" id="shareBioLinkModalOverlay"></div>
         <div class="modal-content" style="max-width: 500px;">
@@ -1526,7 +1618,9 @@
                 </button>
             </div>
             <div class="modal-body">
+
                 <!-- Bio Link URL -->
+
                 <div class="form-group">
                     <label>Your Bio Link</label>
                     <div style="display: flex; gap: 8px;">
@@ -1538,6 +1632,7 @@
                 </div>
 
                 <!-- Share Options -->
+
                 <div style="margin-top: 24px;">
                     <label style="display: block; margin-bottom: 12px; font-weight: 600;">Share to:</label>
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
@@ -1563,6 +1658,7 @@
                 </div>
 
                 <!-- Native Share (for mobile) -->
+
                 <div id="nativeShareBtn" style="margin-top: 16px; display: none;">
                     <button class="btn btn-primary" onclick="nativeShare()" style="width: 100%;">
                         <i class="fas fa-share-alt"></i> More Sharing Options
@@ -1573,6 +1669,7 @@
     </div>
 
     <!-- Login Modal (shown when user clicks login) -->
+
     <div class="modal" id="loginModal" style="display: none;">
         <div class="modal-overlay" id="loginModalOverlay"></div>
         <div class="modal-content login-modal">
@@ -1604,6 +1701,7 @@
     </div>
 
     <!-- Split Test Configurator Modal -->
+
     <div class="modal" id="splitTestModal" style="display: none;">
         <div class="modal-overlay" id="splitTestModalOverlay"></div>
         <div class="modal-content" style="max-width: 650px;">
@@ -1637,7 +1735,9 @@
                     </div>
                     
                     <div id="variantsEditorList" class="variants-editor-list" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
+                      
                         <!-- Rows populated dynamically by app.js -->
+
                     </div>
                     
                     <div class="distribution-preview-section" style="margin-top: 20px; padding: 16px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
@@ -1646,10 +1746,14 @@
                             <span id="totalWeightBadge" class="weight-badge status-invalid" style="font-size: 11px; padding: 2px 8px; border-radius: 4px;">0%</span>
                         </div>
                         <div class="weight-distribution-bar" id="weightDistributionBar" style="height: 10px; border-radius: 5px; background: rgba(255,255,255,0.05); overflow: hidden; display: flex; margin-bottom: 8px;">
+                          
                             <!-- Visual progress segments -->
+
                         </div>
                         <div id="distributionBarLabels" class="distribution-bar-labels" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 11px; color: var(--text-secondary);">
+                          
                             <!-- Labels with colors -->
+
                         </div>
                     </div>
                 </div>
@@ -1663,7 +1767,10 @@
     </div>
 
     <!-- Scripts -->
+
+
     <!-- Firebase SDK -->
+
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -1671,6 +1778,7 @@
     <script src="js/firebase-config.js"></script>
     
     <!-- Other Libraries -->
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -1678,6 +1786,7 @@
     <script src="https://unpkg.com/globe.gl@2.31.0/dist/globe.gl.min.js"></script>
     
     <!-- App Scripts -->
+     
     <script src="js/auth.js"></script>
     <script src="js/version-checker.js"></script>
     <script src="js/qr-generator.js"></script>
