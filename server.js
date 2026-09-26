@@ -5,10 +5,12 @@ const cors = require('cors');
 const path = require('path');
 const { nanoid } = require('nanoid');
 const admin = require('firebase-admin');
+
 // Use the native fetch when available (Node 18+); fall back to node-fetch for
 // older runtimes. A single declaration replaces the two separate const fetch
 // assignments that previously caused SyntaxError: Identifier 'fetch' has
 // already been declared when Node.js parsed the file.
+
 const fetch = typeof globalThis.fetch === 'function'
   ? globalThis.fetch
   : (...args) => import('node-fetch').then(({ default: fetchFn }) => fetchFn(...args));
@@ -17,6 +19,28 @@ const redisUtils = require('./src/utils/redis.utils');
 const redirectCache = require('./src/utils/redirect-cache.utils');
 const { securityHeaders, apiLimiter, bugReportLimiter } = require('./src/middleware/security.middleware');
 const splitTestService = require('./src/services/splitTest.service');
+const geoip = require('geoip-lite');
+
+/**
+ * Perform IP Geolocation lookup
+ * @param {string} ip - IP address to lookup
+ * @returns {object} Geolocation data containing country, city, region, and ll (latitude/longitude)
+ */
+function getGeoFromIP(ip) {
+  if (!ip) return { country: 'Unknown', city: 'Unknown', region: 'Unknown', ll: null };
+  const cleanIP = ip.replace('::ffff:', '');
+  if (cleanIP === '127.0.0.1' || cleanIP === '::1' || cleanIP === 'localhost') {
+    return { country: 'Local', city: 'Local', region: 'Loopback', ll: [0, 0] };
+  }
+  const geo = geoip.lookup(cleanIP);
+  if (!geo) return { country: 'Unknown', city: 'Unknown', region: 'Unknown', ll: null };
+  return {
+    country: geo.country || 'Unknown',
+    city: geo.city || 'Unknown',
+    region: geo.region || 'Unknown',
+    ll: geo.ll || null
+  };
+}
 require('dotenv').config();
 
 // Validate required environment variables on startup
@@ -40,10 +64,12 @@ function validateEnv() {
 validateEnv();
 
 // Initialize Firebase Admin
+
 let db = null;
 
 let auth = null;
 // Firebase state tracking
+
 const firebaseState = {
   enabled: false,
   mode: 'memory',
@@ -76,9 +102,11 @@ firebaseState.reason = 'Firebase connected successfully';
 const app = express();
 const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const server = isServerless ? null : http.createServer(app);
+
 // Restrict Socket.IO CORS to the configured application origin.
 // Falls back to the same ALLOWED_ORIGIN used for the Express CORS middleware
 // so both share a single configuration point in the environment.
+
 const allowedOrigin = process.env.ALLOWED_ORIGIN || false;
 const io = isServerless
   ? { emit: () => {} }
@@ -91,24 +119,31 @@ const io = isServerless
 
 // Helper function to convert shortCode to Firestore-safe document ID
 // Firestore document IDs cannot contain '/' so we replace with '_'
+
 function toFirestoreId(shortCode) {
   return shortCode.replace(/\//g, '_');
 }
 
 // Helper function to convert Firestore ID back to shortCode
+
 function fromFirestoreId(firestoreId) {
+
   // Keep as-is, shortCode field in the document has the original format
+
   return firestoreId;
 }
 
 // Middleware
+
 app.use(securityHeaders);
 app.use(apiLimiter);
+
 // Restrict CORS to the configured application origin.
 // Without an origin restriction, any third-party website can make credentialed
 // cross-origin requests to the API. Set ALLOWED_ORIGIN in the environment to
 // the production front-end URL (e.g. https://piik.me). When unset, cross-origin
 // requests are blocked entirely (origin: false) rather than allowed for all.
+
 app.use(cors({
   origin: process.env.ALLOWED_ORIGIN || false,
   credentials: true,
@@ -122,6 +157,7 @@ app.use((req, res, next) => {
 });
 
 // Firestore Collections
+
 const COLLECTIONS = {
   LINKS: 'links',
   ANALYTICS: 'analytics',
@@ -130,6 +166,7 @@ const COLLECTIONS = {
 };
 
 // Helper to aggregate distributed analytics shards
+
 async function getAggregatedAnalytics(firestoreId) {
   const baseDoc = await db.collection(COLLECTIONS.ANALYTICS).doc(firestoreId).get();
   let data = baseDoc.exists ? baseDoc.data() : {};
@@ -144,6 +181,7 @@ async function getAggregatedAnalytics(firestoreId) {
       data.shares = (data.shares || 0) + (s.shares || 0);
 
       // Merge nested objects dynamically
+
       const mergeNested = (key) => {
         if (!s[key]) return;
         if (!data[key]) data[key] = {};
@@ -164,7 +202,9 @@ async function getAggregatedAnalytics(firestoreId) {
 // Middleware to verify Firebase token
 
 async function verifyToken(req, res, next) {
+
   // If Firebase Auth is not available, reject with clear message
+
   if (!auth) {
     return res.status(503).json({ 
       error: 'Authentication service unavailable. Please configure Firebase.' 
@@ -201,15 +241,18 @@ app.get('/api/system/status', (req, res) => {
 });
 
 // In-memory database (fallback if Firebase not configured)
+
 const links = new Map();
 const analytics = new Map();
 
 // Generate short code
+
 function generateShortCode() {
   return nanoid(7);
 }
 
 // Parse UTM parameters from URL
+
 function parseUTMParams(url) {
   try {
     const urlObj = new URL(url);
@@ -226,6 +269,7 @@ function parseUTMParams(url) {
 }
 
 // Add UTM parameters to URL
+
 function addUTMParams(url, utmParams) {
   try {
     const urlObj = new URL(url);
@@ -312,12 +356,16 @@ async function resolveBioLinkStatus(shortCode) {
 // API Routes
 
 // Helper function to get base URL from request
+
 function getBaseUrl(req) {
+
   // Try Vercel-specific headers first
+
   const host = req.headers['x-forwarded-host'] || req.headers.host;
   const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
   
   // Use environment variable if set, otherwise construct from request
+
   if (process.env.BASE_URL && process.env.BASE_URL !== 'undefined') {
     return process.env.BASE_URL;
   }
@@ -326,6 +374,7 @@ function getBaseUrl(req) {
 }
 
 // Create short link (requires authentication)
+
 app.post('/api/shorten', verifyToken, async (req, res) => {
   const {
   url,
@@ -345,6 +394,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
   // new URL() only checks syntactic correctness; it accepts javascript:, data:,
   // vbscript:, and other schemes that are unsafe as redirect destinations.
   // Enforce an explicit allowlist so only http and https links can be shortened.
+
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -355,6 +405,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
   }
 
   // Block dangerous URL schemes
+
   const blockedSchemes = ['javascript:', 'data:', 'vbscript:'];
   const urlLower = url.toLowerCase();
   for (const scheme of blockedSchemes) {
@@ -364,11 +415,13 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
   }
 
   // Validate custom short code if provided
+
   let shortCode;
   if (customShortCode) {
     const trimmedCode = customShortCode.trim();
     
     // Validate format
+
     if (trimmedCode.length < 3) {
       return res.status(400).json({ error: 'Custom short code must be at least 3 characters' });
     }
@@ -382,6 +435,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
     }
     
     // If username is provided, create username/slug format
+
     if (username) {
       shortCode = `${username}/${trimmedCode}`;
     } else {
@@ -389,6 +443,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
     }
     
     // Check if already exists in Firestore
+
     try {
       const firestoreId = toFirestoreId(shortCode);
       const existingDoc = await db.collection(COLLECTIONS.LINKS).doc(firestoreId).get();
@@ -400,13 +455,18 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
     }
     
     // Check in-memory storage as fallback
+
     if (links.has(shortCode)) {
       return res.status(409).json({ error: 'This custom short code is already taken' });
     }
   } else {
+
     // Generate random short code
+
     const randomCode = generateShortCode();
+
     // If username is provided, prefix random codes with username too
+
     if (username) {
       shortCode = `${username}/${randomCode}`;
     } else {
@@ -415,6 +475,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
   }
 
   // Add UTM parameters if provided
+
   let finalUrl = url;
   if (utmParams) {
     const urlWithUTM = addUTMParams(url, utmParams);
@@ -427,6 +488,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
   const shortUrl = `${baseUrl}/${shortCode}`;
   
   // Store link data
+
   const { expiresAt, maxClicks } = req.body;
 
   const linkData = {
@@ -444,7 +506,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
   isCustom: !!customShortCode,
   isActive: true,
   expiresAt: expiresAt ? admin.firestore.Timestamp.fromDate(new Date(expiresAt)) : null,
-  maxClicks: maxClicks ? parseInt(maxClicks) : null,
+  maxClicks: maxClicks ? parseInt(maxClicks, 10) : null,
   clickCount: 0,
   notifiedExpiry: false,
   isExpired: false
@@ -463,9 +525,11 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
 
   try {
     // Convert shortCode to Firestore-safe ID (replace / with _)
+
     const firestoreId = toFirestoreId(shortCode);
     
     // Save to Firestore
+
     console.log('Saving link to Firestore:', { shortCode, firestoreId, userId, linkData });
     await db.collection(COLLECTIONS.LINKS).doc(firestoreId).set(linkData);
     console.log('Link saved successfully to Firestore');
@@ -474,6 +538,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
     console.log('Analytics saved successfully to Firestore');
     
     // Sync to Redis for edge redirects
+
     await redisUtils.storeLinkInRedis(shortCode, {
       destination: finalUrl,
       userId: userId,
@@ -483,6 +548,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
     await redirectCache.set(shortCode, normalizeRedirectLink(linkData));
     
     // Verify the save by reading it back
+
     const verifyDoc = await db.collection(COLLECTIONS.LINKS).doc(firestoreId).get();
     if (verifyDoc.exists) {
       console.log('✅ Verified link exists in Firestore:', verifyDoc.data());
@@ -501,6 +567,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
     console.error('Error saving to Firestore:', error);
     
     // Fallback to in-memory storagehealthStatus
+
     links.set(shortCode, linkData);
     analytics.set(shortCode, analyticsData);
     await redirectCache.set(shortCode, normalizeRedirectLink(linkData));
@@ -516,6 +583,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
 });
 
 // Get aggregated analytics for all of the authenticated user's links
+
 app.get('/api/user/analytics', verifyToken, async (req, res) => {
   const userId = req.user.uid;
 
@@ -535,6 +603,7 @@ app.get('/api/user/analytics', verifyToken, async (req, res) => {
     });
 
     // Fetch analytics for each link
+
     const analyticsPromises = linksData.map(async (link) => {
       const firestoreId = toFirestoreId(link.shortCode);
       try {
@@ -559,12 +628,14 @@ app.get('/api/user/analytics', verifyToken, async (req, res) => {
 });
 
 // Get analytics for a short link
+
 app.get('/api/analytics/:shortCode', verifyToken, async (req, res) => {
   const { shortCode } = req.params;
   const userId = req.user.uid;
   
   try {
     // Try Firestore first
+
     const firestoreId = toFirestoreId(shortCode);
     const linkDoc = await db.collection(COLLECTIONS.LINKS).doc(firestoreId).get();
     
@@ -575,6 +646,7 @@ app.get('/api/analytics/:shortCode', verifyToken, async (req, res) => {
       }
 
       // Use aggregated analytics from shards
+
       const aggregatedStats = await getAggregatedAnalytics(firestoreId);
       return res.json({
         link: linkData,
@@ -586,6 +658,7 @@ app.get('/api/analytics/:shortCode', verifyToken, async (req, res) => {
   }
   
   // Fallback to in-memory storage
+
   const link = links.get(shortCode);
   const stats = analytics.get(shortCode);
   
@@ -603,12 +676,47 @@ app.get('/api/analytics/:shortCode', verifyToken, async (req, res) => {
   });
 });
 
+// Get a single link by shortCode with ownership verification
+app.get('/api/links/:shortCode', verifyToken, async (req, res) => {
+  let { shortCode } = req.params;
+  shortCode = decodeURIComponent(shortCode);
+  const userId = req.user.uid;
+
+  try {
+    const firestoreId = toFirestoreId(shortCode);
+    const linkRef = db.collection(COLLECTIONS.LINKS).doc(firestoreId);
+    const linkDoc = await linkRef.get();
+
+    if (linkDoc.exists) {
+      const linkData = linkDoc.data();
+      if (linkData.userId !== userId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      return res.json({ success: true, link: { id: linkDoc.id, ...linkData } });
+    }
+  } catch (error) {
+    console.error('Error reading from Firestore:', error);
+  }
+
+  const linkData = links.get(shortCode);
+  if (!linkData) {
+    return res.status(404).json({ error: 'Link not found' });
+  }
+  if (linkData.userId !== userId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  res.json({ success: true, link: linkData });
+});
+
 // Check if username is available
+
 app.get('/api/check-username/:username', verifyToken, async (req, res) => {
   const { username } = req.params;
   
   try {
     // Check if username meets requirements
+
     if (username.length < 3 || username.length > 20) {
       return res.json({ available: false, error: 'Username must be 3-20 characters' });
     }
@@ -630,6 +738,7 @@ app.get('/api/check-username/:username', verifyToken, async (req, res) => {
 });
 
 // Check if shortcode is available
+
 app.get('/api/check-shortcode/:shortCode', verifyToken, async (req, res) => {
   const { shortCode } = req.params;
   
@@ -644,6 +753,7 @@ app.get('/api/check-shortcode/:shortCode', verifyToken, async (req, res) => {
 });
 
 // Get or create user profile
+
 app.get('/api/user/profile', verifyToken, async (req, res) => {
   const userId = req.user.uid;
   
@@ -654,6 +764,7 @@ app.get('/api/user/profile', verifyToken, async (req, res) => {
       res.json({ profile: userDoc.data() });
     } else {
       // Create new user profile
+
       const newProfile = {
         userId,
         email: req.user.email,
@@ -673,6 +784,7 @@ app.get('/api/user/profile', verifyToken, async (req, res) => {
 });
 
 // Set or update username (can only be changed once)
+
 app.post('/api/user/username', verifyToken, async (req, res) => {
   const userId = req.user.uid;
   const { username } = req.body;
@@ -682,6 +794,7 @@ app.post('/api/user/username', verifyToken, async (req, res) => {
   }
   
   // Validate username
+
   if (username.length < 3 || username.length > 20) {
     return res.status(400).json({ error: 'Username must be 3-20 characters' });
   }
@@ -695,11 +808,13 @@ app.post('/api/user/username', verifyToken, async (req, res) => {
     const userData = userDoc.data();
     
     // Check if user can change username
+
     if (userData && userData.username && !userData.canChangeUsername) {
       return res.status(403).json({ error: 'Username can only be changed once' });
     }
     
     // Check if username is available
+
     const usersSnapshot = await db.collection(COLLECTIONS.USERS)
       .where('username', '==', username)
       .limit(1)
@@ -713,6 +828,7 @@ app.post('/api/user/username', verifyToken, async (req, res) => {
     }
     
     // Update username
+
     const updateData = {
       username,
       usernameChangedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -733,17 +849,20 @@ app.post('/api/user/username', verifyToken, async (req, res) => {
 });
 
 // Get user's bio slug (requires authentication) - DEPRECATED, use profile instead
+
 app.get('/api/user/bio-slug', verifyToken, async (req, res) => {
   const userId = req.user.uid;
   
   try {
     // First check user profile for username
+
     const userDoc = await db.collection(COLLECTIONS.USERS).doc(userId).get();
     if (userDoc.exists && userDoc.data().username) {
       return res.json({ slug: userDoc.data().username });
     }
     
     // Fallback to bioLinks for backward compatibility
+
     const bioLinksSnapshot = await db.collection('bioLinks')
       .where('userId', '==', userId)
       .limit(1)
@@ -766,6 +885,7 @@ app.get('/api/user/bio-slug', verifyToken, async (req, res) => {
 // ================================
 
 // GET /api/bio-links/check-slug/:slug - Check if a slug is available
+
 app.get('/api/bio-links/check-slug/:slug', verifyToken, async (req, res) => {
   const { slug } = req.params;
   
@@ -782,6 +902,7 @@ app.get('/api/bio-links/check-slug/:slug', verifyToken, async (req, res) => {
 });
 
 // GET /api/bio-links - Fetch all bio links for authenticated user
+
 app.get('/api/bio-links', verifyToken, async (req, res) => {
   const userId = req.user.uid;
   
@@ -796,6 +917,7 @@ app.get('/api/bio-links', verifyToken, async (req, res) => {
     });
     
     // Sort by createdAt descending
+
     bioLinks.sort((a, b) => {
       const dateA = a.createdAt?.toDate?.() || new Date(0);
       const dateB = b.createdAt?.toDate?.() || new Date(0);
@@ -810,6 +932,7 @@ app.get('/api/bio-links', verifyToken, async (req, res) => {
 });
 
 // POST /api/bio-links - Create a new bio link
+
 app.post('/api/bio-links', verifyToken, async (req, res) => {
   const userId = req.user.uid;
   const { name, slug, description, profilePicture, themeColor, backgroundStyle, links, social } = req.body;
@@ -824,6 +947,7 @@ app.post('/api/bio-links', verifyToken, async (req, res) => {
   
   try {
     // Check if slug is available
+
     const existingSlug = await db.collection(COLLECTIONS.BIO_LINKS)
       .where('slug', '==', slug)
       .get();
@@ -833,6 +957,7 @@ app.post('/api/bio-links', verifyToken, async (req, res) => {
     }
     
     // Check if user already has a bio link
+
     const userBioLinks = await db.collection(COLLECTIONS.BIO_LINKS)
       .where('userId', '==', userId)
       .get();
@@ -868,12 +993,14 @@ app.post('/api/bio-links', verifyToken, async (req, res) => {
 });
 
 // PUT /api/bio-links/:id - Update a bio link
+
 app.put('/api/bio-links/:id', verifyToken, async (req, res) => {
   const userId = req.user.uid;
   const { id } = req.params;
   const { name, slug, description, profilePicture, themeColor, backgroundStyle, links, social } = req.body;
   
   // Validation
+
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Name is required' });
   }
@@ -892,11 +1019,13 @@ app.put('/api/bio-links/:id', verifyToken, async (req, res) => {
     const bioLinkData = bioLinkDoc.data();
     
     // Verify ownership
+
     if (bioLinkData.userId !== userId) {
       return res.status(403).json({ error: 'You do not have permission to update this bio link' });
     }
     
     // Check slug availability if changed
+
     if (slug !== bioLinkData.slug) {
       const existingSlug = await db.collection(COLLECTIONS.BIO_LINKS)
         .where('slug', '==', slug)
@@ -929,6 +1058,7 @@ app.put('/api/bio-links/:id', verifyToken, async (req, res) => {
 });
 
 // DELETE /api/bio-links/:id - Delete a bio link
+
 app.delete('/api/bio-links/:id', verifyToken, async (req, res) => {
   const userId = req.user.uid;
   const { id } = req.params;
@@ -944,6 +1074,7 @@ app.delete('/api/bio-links/:id', verifyToken, async (req, res) => {
     const bioLinkData = bioLinkDoc.data();
     
     // Verify ownership
+
     if (bioLinkData.userId !== userId) {
       return res.status(403).json({ error: 'You do not have permission to delete this bio link' });
     }
@@ -958,6 +1089,7 @@ app.delete('/api/bio-links/:id', verifyToken, async (req, res) => {
 });
 
 // Get all links for a user (requires authentication)
+
 app.get('/api/user/links', verifyToken, async (req, res) => {
   const userId = req.user.uid;
   
@@ -965,6 +1097,7 @@ app.get('/api/user/links', verifyToken, async (req, res) => {
   
   try {
     // Try with orderBy first
+
     let linksSnapshot;
     try {
       linksSnapshot = await db.collection(COLLECTIONS.LINKS)
@@ -973,7 +1106,9 @@ app.get('/api/user/links', verifyToken, async (req, res) => {
         .get();
       console.log(`Found ${linksSnapshot.docs.length} links with orderBy`);
     } catch (orderError) {
+
       // If orderBy fails (missing index), try without it
+
       console.log('OrderBy failed, trying without ordering:', orderError.message);
       linksSnapshot = await db.collection(COLLECTIONS.LINKS)
         .where('userId', '==', userId)
@@ -988,6 +1123,7 @@ app.get('/api/user/links', verifyToken, async (req, res) => {
 			
 
 // Auto-delete inactive links whose scheduledDeletion date has passed
+
 			const now = admin.firestore.Timestamp.now();
       const isInactive = linkData.isActive === false;
       const scheduled = linkData.scheduledDeletion;
@@ -1007,6 +1143,7 @@ app.get('/api/user/links', verifyToken, async (req, res) => {
       }
 
       // Auto-deactivate on expiry
+
       const nowDate = new Date();
       const dateExpired = linkData.expiresAt && linkData.expiresAt.toDate && linkData.expiresAt.toDate() < nowDate;
       const clickExpired = linkData.maxClicks && (linkData.clickCount || 0) >= linkData.maxClicks;
@@ -1018,6 +1155,7 @@ app.get('/api/user/links', verifyToken, async (req, res) => {
       console.log(`Processing link: ${doc.id}`, { shortCode: linkData.shortCode, isActive: linkData.isActive });
       
       // Use aggregated analytics from shards
+
       const analyticsData = await getAggregatedAnalytics(doc.id);
       
       userLinks.push({
@@ -1029,6 +1167,7 @@ app.get('/api/user/links', verifyToken, async (req, res) => {
     }
     
     // Sort by createdAt in JavaScript if we couldn't use orderBy
+
     userLinks.sort((a, b) => {
       const dateA = a.createdAt?._seconds ? new Date(a.createdAt._seconds * 1000) : new Date(0);
       const dateB = b.createdAt?._seconds ? new Date(b.createdAt._seconds * 1000) : new Date(0);
@@ -1044,6 +1183,7 @@ app.get('/api/user/links', verifyToken, async (req, res) => {
 });
 
 // Delete a user account (requires authentication)
+
 app.delete('/api/user', verifyToken, async (req, res) => {
   const userId = req.user.uid;
   
@@ -1120,6 +1260,7 @@ app.get('/api/links/:shortCode', verifyToken, async (req, res) => {
 });
 
 // Deactivate a link (soft delete — marks as inactive with scheduled permanent deletion)
+
 app.put('/api/links/:shortCode/deactivate', verifyToken, async (req, res) => {
   let { shortCode } = req.params;
   shortCode = decodeURIComponent(shortCode);
@@ -1137,6 +1278,7 @@ app.put('/api/links/:shortCode/deactivate', verifyToken, async (req, res) => {
     const linkData = linkDoc.data();
 
     // Verify ownership
+
     if (linkData.userId !== userId) {
       return res.status(403).json({ error: 'You do not have permission to deactivate this link' });
     }
@@ -1152,6 +1294,7 @@ app.put('/api/links/:shortCode/deactivate', verifyToken, async (req, res) => {
     });
 
     // Clear cache
+
     await redisUtils.deleteLinkFromRedis(shortCode);
     await redirectCache.delete(shortCode);
 
@@ -1163,6 +1306,7 @@ app.put('/api/links/:shortCode/deactivate', verifyToken, async (req, res) => {
 });
 
 // Reactivate a deactivated link
+
 app.put('/api/links/:shortCode/reactivate', verifyToken, async (req, res) => {
   let { shortCode } = req.params;
   shortCode = decodeURIComponent(shortCode);
@@ -1180,6 +1324,7 @@ app.put('/api/links/:shortCode/reactivate', verifyToken, async (req, res) => {
     const linkData = linkDoc.data();
 
     // Verify ownership
+
     if (linkData.userId !== userId) {
       return res.status(403).json({ error: 'You do not have permission to reactivate this link' });
     }
@@ -1191,6 +1336,7 @@ app.put('/api/links/:shortCode/reactivate', verifyToken, async (req, res) => {
     });
 
     // Restore in Redis
+
     await redisUtils.storeLinkInRedis(shortCode, { ...linkData, isActive: true });
 
     res.json({ success: true, message: 'Link reactivated successfully' });
@@ -1201,6 +1347,7 @@ app.put('/api/links/:shortCode/reactivate', verifyToken, async (req, res) => {
 });
 
 // Permanently delete all inactive links for the authenticated user
+
 app.delete('/api/links/inactive', verifyToken, async (req, res) => {
   const userId = req.user.uid;
 
@@ -1225,22 +1372,26 @@ app.delete('/api/links/inactive', verifyToken, async (req, res) => {
       if (!shortCode) continue;
 
       // Delete link document
+
       currentBatch.delete(doc.ref);
       batchOps++;
 
       // Delete associated analytics document
+
       const firestoreId = toFirestoreId(shortCode);
       const analyticsRef = db.collection(COLLECTIONS.ANALYTICS).doc(firestoreId);
       currentBatch.delete(analyticsRef);
       batchOps++;
 
       // Clear cache
+
       await redisUtils.deleteLinkFromRedis(shortCode).catch(() => {});
       await redirectCache.delete(shortCode).catch(() => {});
 
       count++;
 
       // Firestore batch limit is 500 — commit + refresh at 400 to stay safe
+
       if (batchOps >= BATCH_LIMIT) {
         await currentBatch.commit();
         currentBatch = db.batch();
@@ -1249,6 +1400,7 @@ app.delete('/api/links/inactive', verifyToken, async (req, res) => {
     }
 
     // Commit remaining batch
+
     if (batchOps > 0) {
       await currentBatch.commit();
     }
@@ -1261,14 +1413,19 @@ app.delete('/api/links/inactive', verifyToken, async (req, res) => {
 });
 
 // Delete a single link by shortCode (requires authentication and ownership)
+
 app.delete('/api/links/:shortCode', verifyToken, async (req, res) => {
   let { shortCode } = req.params;
+
   // Decode URL-encoded shortCode (e.g., atharcloud%2Ftuf -> atharcloud/tuf)
+
   shortCode = decodeURIComponent(shortCode);
   const userId = req.user.uid;
   
   try {
+
     // Convert to Firestore-safe ID
+
     const firestoreId = toFirestoreId(shortCode);
     const linkRef = db.collection(COLLECTIONS.LINKS).doc(firestoreId);
     const linkDoc = await linkRef.get();
@@ -1280,18 +1437,22 @@ app.delete('/api/links/:shortCode', verifyToken, async (req, res) => {
     const linkData = linkDoc.data();
     
     // Verify ownership
+
     if (linkData.userId !== userId) {
       return res.status(403).json({ error: 'You do not have permission to delete this link' });
     }
     
     // Delete the link
+
     await linkRef.delete();
     
     // Delete associated analytics
+
     const analyticsRef = db.collection(COLLECTIONS.ANALYTICS).doc(firestoreId);
     await analyticsRef.delete();
     
     // Delete from Redis
+
     await redisUtils.deleteLinkFromRedis(shortCode);
     await redirectCache.delete(shortCode);
     
@@ -1302,7 +1463,67 @@ app.delete('/api/links/:shortCode', verifyToken, async (req, res) => {
   }
 });
 
+// Edit link metadata (title, notes, tags, expiresAt)
+app.patch('/api/links/:shortCode', verifyToken, async (req, res) => {
+  let { shortCode } = req.params;
+  shortCode = decodeURIComponent(shortCode);
+  const userId = req.user.uid;
+  const { title, notes, tags, expiresAt } = req.body;
+
+  if (title === undefined && notes === undefined && tags === undefined && expiresAt === undefined) {
+    return res.status(400).json({ error: 'At least one field (title, notes, tags, expiresAt) must be provided' });
+  }
+
+  try {
+    const firestoreId = toFirestoreId(shortCode);
+    const linkRef = db.collection(COLLECTIONS.LINKS).doc(firestoreId);
+    const linkDoc = await linkRef.get();
+
+    if (!linkDoc.exists) {
+      return res.status(404).json({ error: 'Link not found' });
+    }
+
+    const linkData = linkDoc.data();
+
+    if (linkData.userId !== userId) {
+      return res.status(403).json({ error: 'You do not have permission to edit this link' });
+    }
+
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (notes !== undefined) updateData.notes = notes;
+    if (tags !== undefined) {
+      if (!Array.isArray(tags)) {
+        return res.status(400).json({ error: 'tags must be an array' });
+      }
+      updateData.tags = tags;
+    }
+    if (expiresAt !== undefined) {
+      if (expiresAt !== null) {
+        const parsed = new Date(expiresAt);
+        if (isNaN(parsed.getTime())) {
+          return res.status(400).json({ error: 'expiresAt must be a valid ISO date string' });
+        }
+        updateData.expiresAt = admin.firestore.Timestamp.fromDate(parsed);
+      } else {
+        updateData.expiresAt = null;
+      }
+    }
+
+    await linkRef.update(updateData);
+
+    await redisUtils.deleteLinkFromRedis(shortCode);
+    await redirectCache.delete(shortCode);
+
+    res.json({ success: true, message: 'Link updated successfully' });
+  } catch (error) {
+    console.error('Error updating link:', error);
+    res.status(500).json({ error: 'Failed to update link' });
+  }
+});
+
 // Configure split-test for a link
+
 app.post('/api/links/:shortCode/split-test', verifyToken, async (req, res) => {
   let { shortCode } = req.params;
   shortCode = decodeURIComponent(shortCode);
@@ -1310,6 +1531,7 @@ app.post('/api/links/:shortCode/split-test', verifyToken, async (req, res) => {
   const { variants } = req.body;
 
   // Validate variants using the splitTestService
+
   const validation = splitTestService.validateVariants(variants);
   if (!validation.valid) {
     return res.status(400).json({ error: validation.message });
@@ -1338,12 +1560,15 @@ app.post('/api/links/:shortCode/split-test', verifyToken, async (req, res) => {
       });
 
       // Clear cache so changes take effect immediately
+
       await redisUtils.deleteLinkFromRedis(shortCode);
       await redirectCache.delete(shortCode);
 
       return res.json({ success: true, message: 'Split test configured successfully' });
     } else {
+
       // In-memory fallback
+
       const linkData = links.get(shortCode);
       if (!linkData) {
         return res.status(404).json({ error: 'Link not found' });
@@ -1367,6 +1592,7 @@ app.post('/api/links/:shortCode/split-test', verifyToken, async (req, res) => {
 });
 
 // Remove split-test configuration from a link
+
 app.delete('/api/links/:shortCode/split-test', verifyToken, async (req, res) => {
   let { shortCode } = req.params;
   shortCode = decodeURIComponent(shortCode);
@@ -1393,12 +1619,15 @@ app.delete('/api/links/:shortCode/split-test', verifyToken, async (req, res) => 
       });
 
       // Clear cache so changes take effect immediately
+
       await redisUtils.deleteLinkFromRedis(shortCode);
       await redirectCache.delete(shortCode);
 
       return res.json({ success: true, message: 'Split test removed successfully' });
     } else {
+
       // In-memory fallback
+
       const linkData = links.get(shortCode);
       if (!linkData) {
         return res.status(404).json({ error: 'Link not found' });
@@ -1422,6 +1651,7 @@ app.delete('/api/links/:shortCode/split-test', verifyToken, async (req, res) => 
 });
 
 // Track impression (when analytics page is viewed)
+
 app.post('/api/track/impression/:shortCode', async (req, res) => {
   let { shortCode } = req.params;
   shortCode = decodeURIComponent(shortCode);
@@ -1432,7 +1662,9 @@ app.post('/api/track/impression/:shortCode', async (req, res) => {
     const doc = await analyticsRef.get();
     
     if (doc.exists) {
+
       // Use distributed counter: write to a random shard
+
       const NUM_SHARDS = 10;
       const shardId = Math.floor(Math.random() * NUM_SHARDS).toString();
       const shardRef = analyticsRef.collection('shards').doc(shardId);
@@ -1443,6 +1675,7 @@ app.post('/api/track/impression/:shortCode', async (req, res) => {
       const stats = { impressions: 1 };
       
       // Emit real-time update
+
       io.emit(`analytics:${shortCode}`, {
         type: 'impression',
         data: stats
@@ -1455,6 +1688,7 @@ app.post('/api/track/impression/:shortCode', async (req, res) => {
   }
   
   // Fallback to in-memory
+
   const stats = analytics.get(shortCode);
   if (stats) {
     stats.impressions++;
@@ -1473,14 +1707,18 @@ app.post('/api/track/impression/:shortCode', async (req, res) => {
 
 // Track share (deprecated - now tracked automatically via UTM parameters)
 // Keeping endpoint for backward compatibility but shares are counted on click with UTM
+
 app.post('/api/track/share/:shortCode', async (req, res) => {
   const { shortCode } = req.params;
+
   // Shares are now tracked automatically when links with utm_source are clicked
   // No need to manually increment here
+
   res.json({ success: true, message: 'Shares tracked via UTM parameters' });
 });
 
 // Create GitHub Issue for Bug Report (requires authentication + strict rate limit)
+
 app.post('/api/bug-report', verifyToken, bugReportLimiter, async (req, res) => {
   try {
     const { title, description, steps, email, userId, userEmail } = req.body;
@@ -1490,6 +1728,7 @@ app.post('/api/bug-report', verifyToken, bugReportLimiter, async (req, res) => {
     }
     
     // Create issue body
+
     let issueBody = `## Bug Description\n${description}\n\n`;
     
     if (steps) {
@@ -1504,6 +1743,7 @@ app.post('/api/bug-report', verifyToken, bugReportLimiter, async (req, res) => {
     issueBody += `- Timestamp: ${new Date().toISOString()}\n`;
     
     // Create GitHub issue using fetch
+
     const response = await fetch('https://api.github.com/repos/xthxr/Link360/issues', {
       method: 'POST',
       headers: {
@@ -1543,6 +1783,7 @@ app.post('/api/bug-report', verifyToken, bugReportLimiter, async (req, res) => {
 });
 
 // Proxy endpoint for importing from Linktree/Bento
+
 app.post('/api/import-profile', async (req, res) => {
   try {
     const { url } = req.body;
@@ -1552,6 +1793,7 @@ app.post('/api/import-profile', async (req, res) => {
     }
     
     // SSRF Protection: Allow-list for trusted domains only
+
     const allowedDomains = [
       'https://linktr.ee/',
       'https://bento.me/'
@@ -1603,17 +1845,19 @@ app.post('/api/import-profile', async (req, res) => {
 });
 
 // Catch-all route for client-side routing
-// This ensures all app routes (/home, /analytics, /profile) serve the index.html
+// This ensures all app routes (/home, /analytics, /profile, /login, /register) serve the index.html
 // Must be BEFORE the /:shortCode route to avoid conflicts
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'landing.html'));
 });
 
-app.get(['/home', '/analytics', '/profile', '/qr-generator', '/bio-link', '/dashboard'], (req, res) => {
+app.get(['/login', '/register', '/signup', '/home', '/analytics', '/profile', '/qr-generator', '/bio-link', '/dashboard'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Track impression without redirect (for link previews - HEAD request)
+
 app.head('/:shortCode', async (req, res) => {
   let { shortCode } = req.params;
   shortCode = decodeURIComponent(shortCode);
@@ -1624,7 +1868,9 @@ app.head('/:shortCode', async (req, res) => {
     const doc = await analyticsRef.get();
     
     if (doc.exists) {
+
       // Use distributed counter: write to a random shard
+
       const NUM_SHARDS = 10;
       const shardId = Math.floor(Math.random() * NUM_SHARDS).toString();
       const shardRef = analyticsRef.collection('shards').doc(shardId);
@@ -1640,12 +1886,14 @@ app.head('/:shortCode', async (req, res) => {
 });
 
 // Helper to extract device type from user-agent
+
 function getDeviceType(userAgent) {
   const isMobile = /mobile|android|iphone|ipad|ipod/i.test(userAgent);
   return isMobile ? 'Mobile' : 'Desktop';
 }
 
 // Helper to extract browser type from user-agent
+
 function getBrowserType(userAgent) {
   let browser = 'Other';
   const ua = userAgent.toLowerCase();
@@ -1665,6 +1913,7 @@ function getBrowserType(userAgent) {
 }
 
 // Helper to get referrer source
+
 function getReferrerSource(req) {
   const userAgent = req.headers['user-agent'] || 'Unknown';
   const httpReferrer = req.headers['referer'] || req.headers['referrer'] || '';
@@ -1716,33 +1965,29 @@ function getReferrerSource(req) {
 }
 
 // Fetch geolocation data
+
 async function fetchGeolocation(clientIP) {
-  let locationData = {
-    country: 'Unknown',
-    city: 'Unknown',
-    region: 'Unknown'
-  };
-  
   try {
-    const geoResponse = await fetch(`http://ip-api.com/json/${clientIP}?fields=status,country,regionName,city`);
-    if (geoResponse.ok) {
-      const geoData = await geoResponse.json();
-      if (geoData.status === 'success') {
-        locationData = {
-          country: geoData.country || 'Unknown',
-          city: geoData.city || 'Unknown',
-          region: geoData.regionName || 'Unknown'
-        };
-      }
-    }
+    const geo = getGeoFromIP(clientIP);
+    return {
+      country: geo.country,
+      city: geo.city,
+      region: geo.region,
+      ll: geo.ll
+    };
   } catch (geoError) {
     console.log('Geolocation lookup failed:', geoError.message);
+    return {
+      country: 'Unknown',
+      city: 'Unknown',
+      region: 'Unknown',
+      ll: null
+    };
   }
-  
-  return locationData;
 }
 
 // Core click-tracking and DB write function
+
 async function trackClickAndEmit(shortCode, req, variantLabel = null) {
   const userAgent = req.headers['user-agent'] || 'Unknown';
   const utmSource = req.query.utm_source;
@@ -1779,11 +2024,14 @@ async function trackClickAndEmit(shortCode, req, variantLabel = null) {
       
       const doc = await analyticsRef.get();
       if (doc.exists) {
+
         // Add to clicks sub-collection
+
         const clickRef = analyticsRef.collection('clicks').doc();
         await clickRef.set(clickData);
         
         // Build the update object
+
         const updateData = {
           impressions: admin.firestore.FieldValue.increment(1),
           clicks: admin.firestore.FieldValue.increment(1),
@@ -1804,21 +2052,25 @@ async function trackClickAndEmit(shortCode, req, variantLabel = null) {
         }
 
         // Distributed counter: Write to a random shard instead of the main document
+
         const NUM_SHARDS = 10;
         const shardId = Math.floor(Math.random() * NUM_SHARDS).toString();
         const shardRef = analyticsRef.collection('shards').doc(shardId);
         await shardRef.set(updateData, { merge: true });
         
         // For real-time Socket.io updates, send the increment data to avoid expensive shard reads
+
         const stats = updateData;
         
         // Emit real-time update
+
         io.emit(`analytics:${shortCode}`, {
           type: 'click',
           data: stats
         });
 
         // Always emit the generic analyticsUpdate
+
         io.emit('analyticsUpdate', {
           shortCode,
           click: clickData
@@ -1833,7 +2085,9 @@ async function trackClickAndEmit(shortCode, req, variantLabel = null) {
         }
       }
     } else {
+
       // In-memory fallback
+
       if (!analytics.has(shortCode)) {
         analytics.set(shortCode, {
           impressions: 0,
@@ -1877,6 +2131,7 @@ async function trackClickAndEmit(shortCode, req, variantLabel = null) {
       });
 
       // Always emit the generic analyticsUpdate
+
       io.emit('analyticsUpdate', {
         shortCode,
         click: clickData
@@ -1896,6 +2151,7 @@ async function trackClickAndEmit(shortCode, req, variantLabel = null) {
 }
 
 // Redirect username/slug format links (e.g., /xthxr/my-link)
+
 app.get('/:username/:slug', async (req, res) => {
   const { username, slug } = req.params;
   const shortCode = `${username}/${slug}`;
@@ -1915,6 +2171,7 @@ app.get('/:username/:slug', async (req, res) => {
   }
 
   // Track click analytics in background/non-blocking
+
   trackClickAndEmit(shortCode, req, variantLabel).catch(err => {
     console.error('Error tracking redirect click:', err);
   });
@@ -1923,17 +2180,21 @@ app.get('/:username/:slug', async (req, res) => {
 });
 
 // Redirect short link and track click (also handles bio links)
+
 app.get('/:shortCode', async (req, res) => {
   const { shortCode } = req.params;
   
   // First check if it's a bio link
+
   const bioLinkStatus = await resolveBioLinkStatus(shortCode);
   if (bioLinkStatus.exists) {
     // It's a bio link, serve bio.html
+
     return res.sendFile(path.join(__dirname, 'public', 'bio.html'));
   }
   
   // Not a bio link, try as regular short link
+
   const { link } = await resolveLinkForRedirect(shortCode);
   
   if (!link) {
@@ -1950,6 +2211,7 @@ app.get('/:shortCode', async (req, res) => {
   }
 
   // Track click analytics in background/non-blocking
+
   trackClickAndEmit(shortCode, req, variantLabel).catch(err => {
     console.error('Error tracking redirect click:', err);
   });
@@ -1958,9 +2220,11 @@ app.get('/:shortCode', async (req, res) => {
 });
 
 // Admin endpoint: Sync all links to Redis
+
 app.post('/api/admin/sync-redis', verifyToken, async (req, res) => {
   try {
     // Check if user is admin (you can add admin check logic here)
+
     const result = await redisUtils.syncAllLinksToRedis(db);
     
     res.json({
@@ -1978,12 +2242,15 @@ app.post('/api/admin/sync-redis', verifyToken, async (req, res) => {
 });
 
 // Expired link page
+
 app.get('/expired', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'expired.html'));
 });
 
 if (!isServerless) {
+
   // Socket.IO connection
+
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
     
@@ -1998,6 +2265,7 @@ if (!isServerless) {
   });
 
   // 24-hour pre-expiry notification check (runs every hour)
+
   setInterval(async () => {
     if (!db) return;
     try {
@@ -2014,7 +2282,9 @@ if (!isServerless) {
           if (expiry <= in24h && expiry > now) {
             console.log(`⏰ Link expiring soon: ${link.shortCode} (${link.userEmail})`);
             await doc.ref.update({ notifiedExpiry: true });
+
             // TODO: plug in Nodemailer here to email link.userEmail
+            
           }
         }
       }
