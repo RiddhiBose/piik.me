@@ -19,7 +19,49 @@ const redisUtils = require('./src/utils/redis.utils');
 const redirectCache = require('./src/utils/redirect-cache.utils');
 const { securityHeaders, apiLimiter, bugReportLimiter } = require('./src/middleware/security.middleware');
 const splitTestService = require('./src/services/splitTest.service');
+const geoip = require('geoip-lite');
+
+/**
+ * Perform IP Geolocation lookup
+ * @param {string} ip - IP address to lookup
+ * @returns {object} Geolocation data containing country, city, region, and ll (latitude/longitude)
+ */
+function getGeoFromIP(ip) {
+  if (!ip) return { country: 'Unknown', city: 'Unknown', region: 'Unknown', ll: null };
+  const cleanIP = ip.replace('::ffff:', '');
+  if (cleanIP === '127.0.0.1' || cleanIP === '::1' || cleanIP === 'localhost') {
+    return { country: 'Local', city: 'Local', region: 'Loopback', ll: [0, 0] };
+  }
+  const geo = geoip.lookup(cleanIP);
+  if (!geo) return { country: 'Unknown', city: 'Unknown', region: 'Unknown', ll: null };
+  return {
+    country: geo.country || 'Unknown',
+    city: geo.city || 'Unknown',
+    region: geo.region || 'Unknown',
+    ll: geo.ll || null
+  };
+}
 require('dotenv').config();
+
+// Validate required environment variables on startup
+function validateEnv() {
+  const required = ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY', 'SESSION_SECRET'];
+  const missing = required.filter(key => !process.env[key]);
+  if (missing.length > 0) {
+    console.error('FATAL: Missing required environment variables:');
+    missing.forEach(key => console.error(`  - ${key}`));
+    console.error('\nThe server cannot start without these variables.');
+    console.error('Copy .env.example to .env and fill in the values.');
+    process.exit(1);
+  }
+  if (process.env.SESSION_SECRET.length < 32) {
+    console.error('FATAL: SESSION_SECRET must be at least 32 characters long for security.');
+    console.error('Generate a secure random string (e.g., using openssl rand -hex 32).');
+    process.exit(1);
+  }
+}
+
+validateEnv();
 
 // Initialize Firebase Admin
 
@@ -464,7 +506,7 @@ app.post('/api/shorten', verifyToken, async (req, res) => {
   isCustom: !!customShortCode,
   isActive: true,
   expiresAt: expiresAt ? admin.firestore.Timestamp.fromDate(new Date(expiresAt)) : null,
-  maxClicks: maxClicks ? parseInt(maxClicks) : null,
+  maxClicks: maxClicks ? parseInt(maxClicks, 10) : null,
   clickCount: 0,
   notifiedExpiry: false,
   isExpired: false
@@ -632,6 +674,39 @@ app.get('/api/analytics/:shortCode', verifyToken, async (req, res) => {
     link,
     analytics: stats
   });
+});
+
+// Get a single link by shortCode with ownership verification
+app.get('/api/links/:shortCode', verifyToken, async (req, res) => {
+  let { shortCode } = req.params;
+  shortCode = decodeURIComponent(shortCode);
+  const userId = req.user.uid;
+
+  try {
+    const firestoreId = toFirestoreId(shortCode);
+    const linkRef = db.collection(COLLECTIONS.LINKS).doc(firestoreId);
+    const linkDoc = await linkRef.get();
+
+    if (linkDoc.exists) {
+      const linkData = linkDoc.data();
+      if (linkData.userId !== userId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      return res.json({ success: true, link: { id: linkDoc.id, ...linkData } });
+    }
+  } catch (error) {
+    console.error('Error reading from Firestore:', error);
+  }
+
+  const linkData = links.get(shortCode);
+  if (!linkData) {
+    return res.status(404).json({ error: 'Link not found' });
+  }
+  if (linkData.userId !== userId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  res.json({ success: true, link: linkData });
 });
 
 // Check if username is available
@@ -1021,16 +1096,6 @@ app.get('/api/user/links', verifyToken, async (req, res) => {
   console.log(`🔍 Fetching links for user: ${userId}`);
   
   try {
-
-    // First, let's see ALL documents in the collection for debugging
-
-    const allDocsSnapshot = await db.collection(COLLECTIONS.LINKS).get();
-    console.log(`Total documents in LINKS collection: ${allDocsSnapshot.docs.length}`);
-    allDocsSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      console.log(`  Doc ${doc.id}: userId=${data.userId}, shortCode=${data.shortCode}`);
-    });
-    
     // Try with orderBy first
 
     let linksSnapshot;
@@ -1145,6 +1210,52 @@ app.delete('/api/user', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error deleting account:', error);
     res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
+// Get link details by shortCode (requires authentication and ownership)
+app.get('/api/links/:shortCode', verifyToken, async (req, res) => {
+  let { shortCode } = req.params;
+  shortCode = decodeURIComponent(shortCode);
+  const userId = req.user.uid;
+
+  try {
+    const firestoreId = toFirestoreId(shortCode);
+
+    if (db) {
+      const linkRef = db.collection(COLLECTIONS.LINKS).doc(firestoreId);
+      const linkDoc = await linkRef.get();
+
+      if (!linkDoc.exists) {
+        return res.status(404).json({ error: 'Link not found' });
+      }
+
+      const linkData = linkDoc.data();
+
+      // Verify ownership
+      if (linkData.userId !== userId) {
+        return res.status(403).json({ error: 'You do not have permission to view this link' });
+      }
+
+      return res.json({ success: true, link: { id: linkDoc.id, ...linkData } });
+    }
+
+    // In-memory fallback
+    const linkData = links.get(shortCode);
+
+    if (!linkData) {
+      return res.status(404).json({ error: 'Link not found' });
+    }
+
+    // Verify ownership
+    if (linkData.userId !== userId) {
+      return res.status(403).json({ error: 'You do not have permission to view this link' });
+    }
+
+    return res.json({ success: true, link: linkData });
+  } catch (error) {
+    console.error('Error fetching link:', error);
+    res.status(500).json({ error: 'Failed to fetch link', details: error.message });
   }
 });
 
@@ -1675,14 +1786,14 @@ app.post('/api/import-profile', async (req, res) => {
 });
 
 // Catch-all route for client-side routing
-// This ensures all app routes (/home, /analytics, /profile) serve the index.html
+// This ensures all app routes (/home, /analytics, /profile, /login, /register) serve the index.html
 // Must be BEFORE the /:shortCode route to avoid conflicts
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'landing.html'));
 });
 
-app.get(['/home', '/analytics', '/profile', '/qr-generator', '/bio-link', '/dashboard'], (req, res) => {
+app.get(['/login', '/register', '/signup', '/home', '/analytics', '/profile', '/qr-generator', '/bio-link', '/dashboard'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -1797,29 +1908,23 @@ function getReferrerSource(req) {
 // Fetch geolocation data
 
 async function fetchGeolocation(clientIP) {
-  let locationData = {
-    country: 'Unknown',
-    city: 'Unknown',
-    region: 'Unknown'
-  };
-  
   try {
-    const geoResponse = await fetch(`http://ip-api.com/json/${clientIP}?fields=status,country,regionName,city`);
-    if (geoResponse.ok) {
-      const geoData = await geoResponse.json();
-      if (geoData.status === 'success') {
-        locationData = {
-          country: geoData.country || 'Unknown',
-          city: geoData.city || 'Unknown',
-          region: geoData.regionName || 'Unknown'
-        };
-      }
-    }
+    const geo = getGeoFromIP(clientIP);
+    return {
+      country: geo.country,
+      city: geo.city,
+      region: geo.region,
+      ll: geo.ll
+    };
   } catch (geoError) {
     console.log('Geolocation lookup failed:', geoError.message);
+    return {
+      country: 'Unknown',
+      city: 'Unknown',
+      region: 'Unknown',
+      ll: null
+    };
   }
-  
-  return locationData;
 }
 
 // Core click-tracking and DB write function
